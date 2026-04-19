@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -23,21 +24,21 @@ model Partner {
 }
 
 model PartnerLead {
-  id                      String             @id @default(cuid())
+  id                      String            @id @default(cuid())
   partnerId               String
 
   companyName             String
   vatNumberRaw            String
-  vatNumberNormalized     String             @unique
+  vatNumberNormalized     String            @unique
 
   contactName             String?
   contactEmail            String?
   note                    String?
   sourceLabel             String?
 
-  status                  PartnerLeadStatus  @default(REGISTERED)
+  status                  PartnerLeadStatus @default(REGISTERED)
 
-  registeredAt            DateTime           @default(now())
+  registeredAt            DateTime          @default(now())
 
   matchedCompanyId        String?
   matchedAt               DateTime?
@@ -48,10 +49,10 @@ model PartnerLead {
   commissionEligibleFrom  DateTime?
   commissionEligibleUntil DateTime?
 
-  createdAt               DateTime           @default(now())
-  updatedAt               DateTime           @updatedAt
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  partner                 Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partner                 Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   events                  PartnerLeadEvent[]
   commissions             PartnerCommission[]
 
@@ -63,13 +64,13 @@ model PartnerLead {
 
 model PartnerLeadEvent {
   id          String               @id @default(cuid())
-  leadId       String
-  type         PartnerLeadEventType
-  message      String?
-  payloadJson  Json?
-  createdAt    DateTime             @default(now())
+  leadId      String
+  type        PartnerLeadEventType
+  message     String?
+  payloadJson Json?
+  createdAt   DateTime             @default(now())
 
-  lead         PartnerLead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead        PartnerLead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId, createdAt])
 }
@@ -80,8 +81,8 @@ model CommissionRule {
   active            Boolean   @default(true)
 
   durationMonths    Int?
-  commissionPercent Decimal?  @db.Decimal(5,2)
-  flatAmount        Decimal?  @db.Decimal(10,2)
+  commissionPercent Decimal?  @db.Decimal(5, 2)
+  flatAmount        Decimal?  @db.Decimal(10, 2)
 
   appliesFrom       DateTime  @default(now())
   appliesUntil      DateTime?
@@ -101,8 +102,8 @@ model PartnerCommission {
   status            PartnerCommissionStatus @default(PENDING)
 
   ruleNameSnapshot  String
-  percentSnapshot   Decimal?                @db.Decimal(5,2)
-  amountSnapshot    Decimal?                @db.Decimal(10,2)
+  percentSnapshot   Decimal?                @db.Decimal(5, 2)
+  amountSnapshot    Decimal?                @db.Decimal(10, 2)
 
   eligibleFrom      DateTime
   eligibleUntil     DateTime?
@@ -129,7 +130,7 @@ model PartnerPayout {
   status        PartnerPayoutStatus @default(REQUESTED)
 
   referenceCode String              @unique
-  amount        Decimal             @db.Decimal(10,2)
+  amount        Decimal             @db.Decimal(10, 2)
 
   requestedAt   DateTime            @default(now())
   processedAt   DateTime?
