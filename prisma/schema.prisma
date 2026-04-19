@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Partner {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  leads         PartnerLead[]
+  commissions   PartnerCommission[]
+  payouts       PartnerPayout[]
+
+  @@index([active])
+}
+
+model PartnerLead {
+  id                      String             @id @default(cuid())
+  partnerId               String
+
+  companyName             String
+  vatNumberRaw            String
+  vatNumberNormalized     String             @unique
+
+  contactName             String?
+  contactEmail            String?
+  note                    String?
+  sourceLabel             String?
+
+  status                  PartnerLeadStatus  @default(REGISTERED)
+
+  registeredAt            DateTime           @default(now())
+
+  matchedCompanyId        String?
+  matchedAt               DateTime?
+
+  trialStartedAt          DateTime?
+  activatedAt             DateTime?
+
+  commissionEligibleFrom  DateTime?
+  commissionEligibleUntil DateTime?
+
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  partner                 Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  events                  PartnerLeadEvent[]
+  commissions             PartnerCommission[]
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([matchedCompanyId])
+  @@index([registeredAt])
+}
+
+model PartnerLeadEvent {
+  id          String               @id @default(cuid())
+  leadId       String
+  type         PartnerLeadEventType
+  message      String?
+  payloadJson  Json?
+  createdAt    DateTime             @default(now())
+
+  lead         PartnerLead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+model CommissionRule {
+  id                String    @id @default(cuid())
+  name              String
+  active            Boolean   @default(true)
+
+  durationMonths    Int?
+  commissionPercent Decimal?  @db.Decimal(5,2)
+  flatAmount        Decimal?  @db.Decimal(10,2)
+
+  appliesFrom       DateTime  @default(now())
+  appliesUntil      DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([active])
+}
+
+model PartnerCommission {
+  id                String                  @id @default(cuid())
+  partnerId         String
+  leadId            String
+  companyId         String?
+
+  status            PartnerCommissionStatus @default(PENDING)
+
+  ruleNameSnapshot  String
+  percentSnapshot   Decimal?                @db.Decimal(5,2)
+  amountSnapshot    Decimal?                @db.Decimal(10,2)
+
+  eligibleFrom      DateTime
+  eligibleUntil     DateTime?
+
+  triggeredAt       DateTime?
+  approvedAt        DateTime?
+  paidAt            DateTime?
+
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  partner           Partner                 @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  lead              PartnerLead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@index([leadId])
+  @@index([companyId])
+  @@index([status])
+}
+
+model PartnerPayout {
+  id            String              @id @default(cuid())
+  partnerId     String
+  status        PartnerPayoutStatus @default(REQUESTED)
+
+  referenceCode String              @unique
+  amount        Decimal             @db.Decimal(10,2)
+
+  requestedAt   DateTime            @default(now())
+  processedAt   DateTime?
+
+  note          String?
+
+  partner       Partner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@index([status])
+}
+
+enum PartnerLeadStatus {
+  REGISTERED
+  TRIAL_STARTED
+  ACTIVATED
+  EXPIRED
+  REJECTED
+}
+
+enum PartnerLeadEventType {
+  LEAD_CREATED
+  DUPLICATE_REJECTED
+  MATCH_FOUND
+  TRIAL_STARTED
+  ACTIVATED
+  COMMISSION_CREATED
+  COMMISSION_EXPIRED
+  PAYOUT_REQUESTED
+  PAYOUT_PAID
+}
+
+enum PartnerCommissionStatus {
+  PENDING
+  EARNED
+  APPROVED
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum PartnerPayoutStatus {
+  REQUESTED
+  APPROVED
+  PAID
+  REJECTED
+}
