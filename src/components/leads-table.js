@@ -1,12 +1,12 @@
-function formatDate(value) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("nl-BE", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 export default function LeadsTable({ leads }) {
+  function formatDate(value) {
+    if (!value) return "-";
+    return new Intl.DateTimeFormat("nl-BE", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(value));
+  }
+
   return (
     <div
       style={{
@@ -21,17 +21,22 @@ export default function LeadsTable({ leads }) {
           <tr>
             <th style={th}>Onderneming</th>
             <th style={th}>Ondernemingsnummer</th>
+            <th style={th}>Contactpersoon</th>
+            <th style={th}>E-mail</th>
             <th style={th}>Status</th>
             <th style={th}>Test gestart</th>
             <th style={th}>Geactiveerd</th>
             <th style={th}>Recht tot</th>
           </tr>
         </thead>
+
         <tbody>
           {leads.map((lead) => (
             <tr key={lead.id}>
               <td style={td}>{lead.companyName}</td>
-              <td style={td}>{lead.vatNumberNormalized}</td>
+              <td style={td}>{lead.vatNumberRaw}</td>
+              <td style={td}>{lead.contactName || "-"}</td>
+              <td style={td}>{lead.contactEmail || "-"}</td>
               <td style={td}>{lead.status}</td>
               <td style={td}>{formatDate(lead.trialStartedAt)}</td>
               <td style={td}>{formatDate(lead.activatedAt)}</td>

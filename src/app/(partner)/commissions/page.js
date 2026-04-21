@@ -1,7 +1,8 @@
-import prisma from "@/lib/prisma";
-import { getPartnerSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+const PARTNER_EMAIL = "jan@punctoo.be";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -12,10 +13,12 @@ function formatDate(value) {
 }
 
 export default async function CommissionsPage() {
-  const session = await getPartnerSession();
+  const partner = await prisma.partner.findUnique({
+    where: { email: PARTNER_EMAIL },
+  });
 
   const commissions = await prisma.partnerCommission.findMany({
-    where: { partnerId: session.partnerId },
+    where: { partnerId: partner?.id },
     orderBy: { createdAt: "desc" },
     include: {
       lead: true,
@@ -55,7 +58,11 @@ export default async function CommissionsPage() {
                 <td style={td}>{item.status}</td>
                 <td style={td}>{item.ruleNameSnapshot}</td>
                 <td style={td}>
-                  {item.percentSnapshot ? `${item.percentSnapshot}%` : item.amountSnapshot ? `€ ${item.amountSnapshot}` : "-"}
+                  {item.percentSnapshot
+                    ? `${item.percentSnapshot}%`
+                    : item.amountSnapshot
+                    ? `€ ${item.amountSnapshot}`
+                    : "-"}
                 </td>
                 <td style={td}>{formatDate(item.triggeredAt)}</td>
                 <td style={td}>{formatDate(item.paidAt)}</td>

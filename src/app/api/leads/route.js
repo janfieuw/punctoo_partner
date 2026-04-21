@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { requirePartnerSession } from "@/lib/auth";
-import { normalizeVatNumber, isValidNormalizedBelgianVat } from "@/lib/vat";
+import { prisma } from "@/lib/prisma";
 import { addMonths, getActiveCommissionRule } from "@/lib/commission";
+
+const PARTNER_EMAIL = "jan@punctoo.be";
 
 export async function GET() {
   try {
-    const session = await requirePartnerSession();
+    const partner = await prisma.partner.findUnique({
+      where: { email: PARTNER_EMAIL },
+    });
+
+    if (!partner) {
+      return NextResponse.json(
+        { error: "Partner niet gevonden." },
+        { status: 404 }
+      );
+    }
 
     const leads = await prisma.partnerLead.findMany({
-      where: { partnerId: session.partnerId },
+      where: { partnerId: partner.id },
       orderBy: { registeredAt: "desc" },
       include: {
         commissions: {
@@ -21,20 +30,31 @@ export async function GET() {
     return NextResponse.json({ leads });
   } catch (error) {
     console.error("GET /api/leads error:", error);
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Interne fout." }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const session = await requirePartnerSession();
+    const partner = await prisma.partner.findUnique({
+      where: { email: PARTNER_EMAIL },
+    });
+
+    if (!partner) {
+      return NextResponse.json(
+        { error: "Partner niet gevonden." },
+        { status: 404 }
+      );
+    }
+
     const body = await request.json();
 
     const companyName = String(body.companyName || "").trim();
     const vatNumberRaw = String(body.vatNumber || "").trim();
     const contactName = body.contactName ? String(body.contactName).trim() : null;
-    const contactEmail = body.contactEmail ? String(body.contactEmail).trim().toLowerCase() : null;
-    const note = body.note ? String(body.note).trim() : null;
+    const contactEmail = body.contactEmail
+      ? String(body.contactEmail).trim().toLowerCase()
+      : null;
 
     if (!companyName || !vatNumberRaw) {
       return NextResponse.json(
@@ -43,14 +63,16 @@ export async function POST(request) {
       );
     }
 
-    const vatNumberNormalized = normalizeVatNumber(vatNumberRaw);
+    const vatRegex = /^0\.\d{3}\.\d{3}\.\d{3}$/;
 
-    if (!isValidNormalizedBelgianVat(vatNumberNormalized)) {
+    if (!vatRegex.test(vatNumberRaw)) {
       return NextResponse.json(
-        { error: "Ongeldig ondernemingsnummer." },
+        { error: "Ondernemingsnummer moet formaat 0.xxx.xxx.xxx hebben." },
         { status: 400 }
       );
     }
+
+    const vatNumberNormalized = vatNumberRaw.replace(/\D/g, "");
 
     const existingLead = await prisma.partnerLead.findUnique({
       where: { vatNumberNormalized },
@@ -72,13 +94,12 @@ export async function POST(request) {
 
     const lead = await prisma.partnerLead.create({
       data: {
-        partnerId: session.partnerId,
+        partnerId: partner.id,
         companyName,
         vatNumberRaw,
         vatNumberNormalized,
         contactName,
         contactEmail,
-        note,
         status: "REGISTERED",
         registeredAt: now,
         commissionEligibleFrom: now,

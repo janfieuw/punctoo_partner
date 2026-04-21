@@ -11,6 +11,7 @@ export async function POST(request) {
     const password = String(formData.get("password") || "");
 
     if (!email || !password) {
+      console.log("LOGIN FAIL: missing email or password");
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
@@ -18,17 +19,26 @@ export async function POST(request) {
       where: { email },
     });
 
-    if (!partner || !partner.active) {
+    if (!partner) {
+      console.log("LOGIN FAIL: partner not found", email);
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    if (!partner.active) {
+      console.log("LOGIN FAIL: partner inactive", email);
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
     const valid = await bcrypt.compare(password, partner.passwordHash);
 
     if (!valid) {
+      console.log("LOGIN FAIL: invalid password", email);
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
     await setPartnerSession(partner.id);
+
+    console.log("LOGIN OK:", email);
 
     return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (error) {

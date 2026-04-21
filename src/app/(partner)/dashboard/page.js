@@ -1,23 +1,29 @@
-import prisma from "@/lib/prisma";
-import { getPartnerSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+// tijdelijke vaste partner (seed)
+const PARTNER_EMAIL = "jan@punctoo.be";
+
 export default async function DashboardPage() {
-  const session = await getPartnerSession();
+  const partner = await prisma.partner.findUnique({
+    where: { email: PARTNER_EMAIL },
+  });
+
+  const partnerId = partner?.id;
 
   const [totalLeads, trialStarted, activated, earnedCommissions] = await Promise.all([
     prisma.partnerLead.count({
-      where: { partnerId: session.partnerId },
+      where: { partnerId },
     }),
     prisma.partnerLead.count({
-      where: { partnerId: session.partnerId, status: "TRIAL_STARTED" },
+      where: { partnerId, status: "TRIAL_STARTED" },
     }),
     prisma.partnerLead.count({
-      where: { partnerId: session.partnerId, status: "ACTIVATED" },
+      where: { partnerId, status: "ACTIVATED" },
     }),
     prisma.partnerCommission.count({
-      where: { partnerId: session.partnerId, status: "EARNED" },
+      where: { partnerId, status: "EARNED" },
     }),
   ]);
 

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "punctoo_partner_session";
 
@@ -43,7 +43,7 @@ export async function setPartnerSession(partnerId) {
   cookieStore.set(SESSION_COOKIE, partnerId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: false,
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
@@ -54,7 +54,7 @@ export async function clearPartnerSession() {
   cookieStore.set(SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: false,
     path: "/",
     maxAge: 0,
   });

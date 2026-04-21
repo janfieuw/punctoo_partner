@@ -5,46 +5,72 @@ import { useRouter } from "next/navigation";
 
 export default function LeadForm() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [companyName, setCompanyName] = useState("");
+  const [vatNumber, setVatNumber] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+
+  function formatVatInput(input) {
+    let value = String(input || "").replace(/\D/g, "").slice(0, 10);
+
+    if (!value) return "";
+
+    if (value.length <= 1) return value;
+    if (value.length <= 4) return `${value[0]}.${value.slice(1)}`;
+    if (value.length <= 7) return `${value[0]}.${value.slice(1, 4)}.${value.slice(4)}`;
+
+    return `${value[0]}.${value.slice(1, 4)}.${value.slice(4, 7)}.${value.slice(7, 10)}`;
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
+
     setLoading(true);
     setError("");
     setSuccess("");
 
-    const formData = new FormData(event.currentTarget);
-
     const payload = {
-      companyName: formData.get("companyName"),
-      vatNumber: formData.get("vatNumber"),
-      contactName: formData.get("contactName"),
-      contactEmail: formData.get("contactEmail"),
-      note: formData.get("note"),
+      companyName,
+      vatNumber,
+      contactName,
+      contactEmail,
     };
 
-    const response = await fetch("/api/leads", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      setError(data.error || "Er is iets fout gelopen.");
+      if (!response.ok) {
+        setError(data.error || "Er is iets fout gelopen.");
+        setLoading(false);
+        return;
+      }
+
+      setSuccess("Lead toegevoegd.");
+
+      setCompanyName("");
+      setVatNumber("");
+      setContactName("");
+      setContactEmail("");
+
+      router.refresh();
+    } catch (err) {
+      setError("Er is iets fout gelopen.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSuccess("Lead toegevoegd.");
-    event.currentTarget.reset();
-    setLoading(false);
-    router.refresh();
   }
 
   return (
@@ -61,11 +87,40 @@ export default function LeadForm() {
     >
       <h2 style={{ margin: 0 }}>Nieuwe lead</h2>
 
-      <input name="companyName" placeholder="Onderneming" required style={inputStyle} />
-      <input name="vatNumber" placeholder="Onderningsnummer" required style={inputStyle} />
-      <input name="contactName" placeholder="Contactpersoon" style={inputStyle} />
-      <input name="contactEmail" placeholder="E-mailadres" type="email" style={inputStyle} />
-      <textarea name="note" placeholder="Notitie" rows={4} style={{ ...inputStyle, height: "auto", padding: "12px" }} />
+      <input
+        name="companyName"
+        placeholder="Onderneming"
+        required
+        value={companyName}
+        onChange={(e) => setCompanyName(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        name="vatNumber"
+        placeholder="0.123.456.789"
+        required
+        value={vatNumber}
+        onChange={(e) => setVatNumber(formatVatInput(e.target.value))}
+        style={inputStyle}
+      />
+
+      <input
+        name="contactName"
+        placeholder="Contactpersoon"
+        value={contactName}
+        onChange={(e) => setContactName(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        name="contactEmail"
+        placeholder="E-mailadres"
+        type="email"
+        value={contactEmail}
+        onChange={(e) => setContactEmail(e.target.value)}
+        style={inputStyle}
+      />
 
       {error ? <div style={{ color: "#b42318" }}>{error}</div> : null}
       {success ? <div style={{ color: "#067647" }}>{success}</div> : null}

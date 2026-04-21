@@ -1,4 +1,4 @@
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function getActiveCommissionRule() {
   return prisma.commissionRule.findFirst({
@@ -22,8 +22,8 @@ export function addMonths(date, months) {
 }
 
 export function isWithinEligibilityWindow(lead, activationDate) {
-  const from = lead.commissionEligibleFrom ? new Date(lead.commissionEligibleFrom) : null;
-  const until = lead.commissionEligibleUntil ? new Date(lead.commissionEligibleUntil) : null;
+  const from = lead?.commissionEligibleFrom ? new Date(lead.commissionEligibleFrom) : null;
+  const until = lead?.commissionEligibleUntil ? new Date(lead.commissionEligibleUntil) : null;
   const activatedAt = new Date(activationDate);
 
   if (from && activatedAt < from) return false;

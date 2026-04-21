@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { normalizeVatNumber, isValidNormalizedBelgianVat } from "@/lib/vat";
+import { prisma } from "@/lib/prisma";
 import { getActiveCommissionRule, isWithinEligibilityWindow } from "@/lib/commission";
+
+function normalizeVat(value) {
+  return String(value || "").replace(/\D/g, "");
+}
 
 export async function POST(request) {
   try {
     const secret = request.headers.get("x-internal-secret");
 
-    if (secret !== process.env.INTERNAL_SYNC_SECRET) {
+    if (!secret || secret !== process.env.INTERNAL_SYNC_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -15,48 +18,62 @@ export async function POST(request) {
 
     const companyId = body.companyId ? String(body.companyId) : null;
     const companyName = body.companyName ? String(body.companyName) : null;
-    const vatNumber = body.vatNumber ? String(body.vatNumber) : null;
+    const vatNumberRaw = body.vatNumber ? String(body.vatNumber) : null;
     const trialStartsAt = body.trialStartsAt ? new Date(body.trialStartsAt) : null;
     const activatedAt = body.activatedAt ? new Date(body.activatedAt) : null;
 
-    const vatNumberNormalized = normalizeVatNumber(vatNumber);
+    const vatNumberNormalized = normalizeVat(vatNumberRaw);
 
-    if (!isValidNormalizedBelgianVat(vatNumberNormalized)) {
+    if (!vatNumberNormalized || vatNumberNormalized.length !== 10) {
       return NextResponse.json({ ok: true, skipped: "invalid_vat" });
     }
 
-    const lead = await prisma.partnerLead.findUnique({
-      where: { vatNumberNormalized },
+    const lead = await prisma.partnerLead.findFirst({
+      where: {
+        vatNumberNormalized,
+      },
+      include: {
+        commissions: true,
+      },
     });
 
     if (!lead) {
       return NextResponse.json({ ok: true, skipped: "lead_not_found" });
     }
 
-    const eventCreates = [];
     const updateData = {};
+    const events = [];
 
     if (!lead.matchedCompanyId && companyId) {
       updateData.matchedCompanyId = companyId;
       updateData.matchedAt = new Date();
 
-      eventCreates.push({
+      events.push({
         type: "MATCH_FOUND",
         message: "Match gevonden met klant in MyPunctoo.",
-        payloadJson: { companyId, companyName },
+        payloadJson: {
+          companyId,
+          companyName,
+          vatNumberNormalized,
+        },
       });
     }
 
     if (trialStartsAt && !lead.trialStartedAt) {
       updateData.trialStartedAt = trialStartsAt;
+
       if (lead.status === "REGISTERED") {
         updateData.status = "TRIAL_STARTED";
       }
 
-      eventCreates.push({
+      events.push({
         type: "TRIAL_STARTED",
         message: "Lead heeft testperiode gestart.",
-        payloadJson: { trialStartsAt },
+        payloadJson: {
+          companyId,
+          companyName,
+          trialStartsAt,
+        },
       });
     }
 
@@ -64,10 +81,14 @@ export async function POST(request) {
       updateData.activatedAt = activatedAt;
       updateData.status = "ACTIVATED";
 
-      eventCreates.push({
+      events.push({
         type: "ACTIVATED",
         message: "Lead heeft abonnement geactiveerd.",
-        payloadJson: { activatedAt },
+        payloadJson: {
+          companyId,
+          companyName,
+          activatedAt,
+        },
       });
     }
 
@@ -75,10 +96,10 @@ export async function POST(request) {
       where: { id: lead.id },
       data: {
         ...updateData,
-        ...(eventCreates.length
+        ...(events.length
           ? {
               events: {
-                create: eventCreates,
+                create: events,
               },
             }
           : {}),
@@ -120,7 +141,11 @@ export async function POST(request) {
               leadId: refreshedLead.id,
               type: "COMMISSION_CREATED",
               message: "Commissie aangemaakt na activatie.",
-              payloadJson: { companyId, activatedAt },
+              payloadJson: {
+                companyId,
+                companyName,
+                activatedAt,
+              },
             },
           });
         } else {
@@ -134,7 +159,11 @@ export async function POST(request) {
               leadId: refreshedLead.id,
               type: "COMMISSION_EXPIRED",
               message: "Activatie viel buiten de geldigheidsperiode.",
-              payloadJson: { companyId, activatedAt },
+              payloadJson: {
+                companyId,
+                companyName,
+                activatedAt,
+              },
             },
           });
         }

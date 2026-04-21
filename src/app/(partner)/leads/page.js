@@ -1,15 +1,18 @@
-import prisma from "@/lib/prisma";
-import { getPartnerSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import LeadForm from "@/components/lead-form";
 import LeadsTable from "@/components/leads-table";
 
 export const dynamic = "force-dynamic";
 
+const PARTNER_EMAIL = "jan@punctoo.be";
+
 export default async function LeadsPage() {
-  const session = await getPartnerSession();
+  const partner = await prisma.partner.findUnique({
+    where: { email: PARTNER_EMAIL },
+  });
 
   const leads = await prisma.partnerLead.findMany({
-    where: { partnerId: session.partnerId },
+    where: { partnerId: partner?.id },
     orderBy: { registeredAt: "desc" },
   });
 
